@@ -9,6 +9,7 @@ app = Flask(__name__)
 file_name = '/home/minoorr/alisa2/users.json'
 modes = {}
 
+
 @app.route('/post', methods=['POST'])
 def main():
     response = {
@@ -16,7 +17,7 @@ def main():
         'version': request.json['version'],
         'response': {
             'end_session': False,
-            'text':''
+            'text': ''
         }
     }
 
@@ -70,9 +71,9 @@ def handle_dialog(res, req):
 
     if user_id not in modes:  # Если игрок еще не выбрал режим игры
         if req['request']['command'] == '2':
-            modes[user_id] = {'mode': 2, 'categories': None,'attempt':0}
+            modes[user_id] = {'mode': 2, 'categories': None, 'attempt': 0,'hint':0}
         elif req['request']['command'] == '1':
-            modes[user_id] = {'mode': 1, 'categories': None,'attempt':0}
+            modes[user_id] = {'mode': 1, 'categories': None, 'attempt': 0,'hint':0}
         else:
             res['response']['text'] = 'Прости, я тебя не поняла. Так что ты выбераешь?'
             res['response']['buttons'] = [{
@@ -116,46 +117,97 @@ def handle_dialog(res, req):
             return
 
     if user_id in modes and modes[user_id]['attempt']:
-        if req['request']['command'] == modes[user_id]['ans'].lower():
-            res['response']['text'] = f"Верно! Ты угадал с {modes[user_id]['attempt']} попытки. Поехали дальше. "  #посчитать баллы и сохранить
-            modes[user_id]['attempt'] = 0
-        else:
+        guessed = False
+        if req['request']['command'] == 'сдаюсь':
+            res['response']['text'] = f'Очень жаль, это был фильм "{modes[user_id]["ans"]}". '
+            modes[user_id]['attempt'] = 0 #сброс  в  отдльной  функции?
+            modes[user_id]['hint'] = 0
+            guessed=True
+        elif req['request']['command'] == 'подсказка':
+            modes[user_id]['hint']+=1
+            hint = get_hint(modes[user_id]['ans'],modes[user_id]['hint'])
+            res['response']['text'] = f'Вот несколько букв из названия фильма: "{hint}...". Но помни, чем больше подсказок, тем меньше баллов!'
+            #modes[user_id]['attempt'] += 1
+            res['response']['buttons'] = [{
+                'title': 'Сдаюсь',
+                'hide': True},
+                {'title': 'Подсказка',
+                 'hide': True}]
+            return
+        for word in preparing_the_answer(modes[user_id]['ans']):
+            if req['request']['command'] == word:
+                res['response'][
+                    'text'] = f"Верно! Ты угадал с {modes[user_id]['attempt']} попытки. Поехали дальше. "  # посчитать баллы и сохранить
+                modes[user_id]['attempt'] = 0
+                modes[user_id]['hint'] = 0
+                data[user_id]['guessed'].append(data[user_id]['played'][-1])
+                with open(file_name, 'w') as f:
+                    json.dump(data, f)
+                guessed = True
+        if not guessed:
             res['response']['text'] = 'Попробуй еще раз'
-            modes[user_id]['attempt']+=1
+            modes[user_id]['attempt'] += 1
+            res['response']['buttons'] = [{
+                'title': 'Сдаюсь',
+                'hide': True},
+                {'title': 'Подсказка',
+                 'hide': True}]
             return
 
     if user_id in modes and modes[user_id]['categories'] and not modes[user_id]['attempt']:
-        modes[user_id]['attempt']+=1
         res_dict = choose_level(modes, user_id)
         if isinstance(res_dict, str):
             res['response']['text'] = res_dict
+            res['response']['buttons'] = [{
+                'title': 'Фильмы',
+                'hide': True},
+                {'title': 'Короткие фильмы',
+                 'hide': True},
+                {'title': 'Тв сериалы',
+                 'hide': True},
+                {'title': 'Все вместе',
+                 'hide': True}]
             return
 
+        modes[user_id]['attempt'] += 1
         data[user_id]['played'].append(res_dict['id'])
-        with open(file_name, 'w') as f:
+        with open(file_name, 'w') as f:  # Может, стоит записать после угадывания?
             json.dump(data, f)
         res['response'][
-            'text'] += f"Угадай фильм по герою! Герой - {res_dict['name']}. В названии фильма {len(res_dict['film'].split())} слов(а)"
+            'text'] += f"Угадай фильм по герою! Герой - {res_dict['name'].split('/')[0]}. В названии фильма {len(preparing_the_answer(res_dict['film'])[0].split())} слов(а)"
         res['response']['card'] = {}
         res['response']['card']['image_id'] = res_dict['image']
         res['response']['card']['type'] = 'BigImage'
+        res['response']['card']['title'] = res['response']['text']
+
         modes[user_id]['ans'] = res_dict['film']
-        if set(res_dict['film'])&{'-',',',':','?'}:
-            res['response']['card'][
-            'title'] = res['response']['text']+f"В названии также есть {(set(res_dict['film'])&{'-',',',':','?'})[0]} символ"
-        else:
-            res['response']['card'][
-                'title'] = res['response']['text']
         return
 
-
-
-
+def get_hint(name_of_the_film,hint):
+    return name_of_the_film[:hint]
 
 def get_name(req):
     for entity in req['request']['nlu']['entities']:
         if entity['type'] == 'YANDEX.FIO':
             return entity['value'].get('first_name', None)
+
+
+def preparing_the_answer(name_of_the_film):
+    ans = name_of_the_film.lower().split('/')
+    a = []
+    for i in ans:
+        res = ''
+        if set(list(i)) & {'-', '!', '?', ','}:
+            for j in list(i):
+                if j not in {'-', '!', '?', ','}:
+                    res += j
+                else:
+                    res+=' '
+        a.append(' '.join(res.split()))
+    if a[0]:
+        return a + ans
+    else:
+        return ans
 
 
 if __name__ == '__main__':

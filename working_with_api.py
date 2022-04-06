@@ -33,17 +33,18 @@ def choose_film(modes, user):
         played = json.load(f)[user]['played']
     with open('/home/minoorr/alisa2/numbers.json') as f:
         f = json.load(f)
+
     try:
         numbers = f["number_for_random_choosing"][categories]
-        if set(f["number_for_random_choosing"][categories]) & set(played) == set(
-                f["number_for_random_choosing"][categories]):
-            return 'Ты уже угадывал все фильмы из этой категории'
     except Exception:
         numbers = f["number_for_random_choosing"]['tvShows'] + f["number_for_random_choosing"]['films'] + \
                   f["number_for_random_choosing"]['shortFilms']
 
+    if set(numbers) &set(played)==set(numbers):
+        return 'Ты уже угадывал все фильмы из этой категории'
+
     while True:
-        num = choice(numbers)
+        num = choice(numbers)#set(numbers)-set(played) и без while True
         if int(num) not in played:
             break
     return num
