@@ -36,9 +36,8 @@ def handle_dialog(res, req):
         if user_id not in data.keys():
             res['response']['text'] = \
                 'Привет! Как хорошо ты знаешь фильмы disney? Давай проверим! Но для начала нужно познакомиться. Как тебя зовут?'
-            data[user_id] = {'name': None, 'played': [], 'guessed': []}
-            with open(file_name, 'w') as f:
-                json.dump(data, f)
+            data[user_id] = {'name': None, 'played': [], 'guessed': [], 'points':0}
+            save_the_progress(data, file_name)
             return
         else:
             res['response'][
@@ -58,8 +57,9 @@ def handle_dialog(res, req):
             res['response']['text'] = 'Не расслышала имя. Повтори, пожалуйста!'
         else:
             data[user_id]['name'] = first_name
-            with open(file_name, 'w') as f:
-                json.dump(data, f)
+
+            save_the_progress(data,file_name)
+
             res['response'][
                 'text'] = f'Приятно познакомиться, {first_name.title()}. Выбирай режим игры. Ты можешь угадывать: 1)название фильма/мультфильма/тв сериала по фотаграфии героя и его имени или 2)угадывать имя героя по фотографии героя и названию фильма'
             res['response']['buttons'] = [{
@@ -124,8 +124,17 @@ def handle_dialog(res, req):
             modes[user_id]['hint'] = 0
             guessed=True
         elif req['request']['command'] == 'подсказка':
-            modes[user_id]['hint']+=1
-            hint = get_hint(modes[user_id]['ans'],modes[user_id]['hint'])
+
+            hint=get_hint(user_id)
+
+            if not hint:
+                res['response']['text'] = f'У тебя больше не осталось подсказок!'
+                res['response']['buttons'] = [{
+                    'title': 'Сдаюсь',
+                    'hide': True},
+                    {'title': 'Подсказка',
+                     'hide': True}]
+                return
             res['response']['text'] = f'Вот несколько букв из названия фильма: "{hint}...". Но помни, чем больше подсказок, тем меньше баллов!'
             #modes[user_id]['attempt'] += 1
             res['response']['buttons'] = [{
@@ -137,12 +146,15 @@ def handle_dialog(res, req):
         for word in preparing_the_answer(modes[user_id]['ans']):
             if req['request']['command'] == word:
                 res['response'][
-                    'text'] = f"Верно! Ты угадал с {modes[user_id]['attempt']} попытки. Поехали дальше. "  # посчитать баллы и сохранить
+                    'text'] = f"Верно! Ты угадал с {modes[user_id]['attempt']} попытки и заработал ... Поехали дальше. "  # посчитать баллы и сохранить
                 modes[user_id]['attempt'] = 0
                 modes[user_id]['hint'] = 0
+
                 data[user_id]['guessed'].append(data[user_id]['played'][-1])
-                with open(file_name, 'w') as f:
-                    json.dump(data, f)
+                data = count_the_points(user_id,modes,data)
+
+                save_the_progress(data,file_name)
+
                 guessed = True
         if not guessed:
             res['response']['text'] = 'Попробуй еще раз'
@@ -171,7 +183,7 @@ def handle_dialog(res, req):
 
         modes[user_id]['attempt'] += 1
         data[user_id]['played'].append(res_dict['id'])
-        with open(file_name, 'w') as f:  # Может, стоит записать после угадывания?
+        with open(file_name, 'w') as f:  # Может, стоит записать после угадывания? Завести функцию с сохранением
             json.dump(data, f)
         res['response'][
             'text'] += f"Угадай фильм по герою! Герой - {res_dict['name'].split('/')[0]}. В названии фильма {len(preparing_the_answer(res_dict['film'])[0].split())} слов(а)"
@@ -183,8 +195,11 @@ def handle_dialog(res, req):
         modes[user_id]['ans'] = res_dict['film']
         return
 
-def get_hint(name_of_the_film,hint):
-    return name_of_the_film[:hint]
+def get_hint (user_id):
+    if modes[user_id]['hint'] <3:
+        modes[user_id]['hint']+=1
+        return modes[user_id]['ans'][:modes[user_id]['hint']]
+    return 0
 
 def get_name(req):
     for entity in req['request']['nlu']['entities']:
@@ -209,6 +224,15 @@ def preparing_the_answer(name_of_the_film):
     else:
         return ans
 
+def count_the_points(user_id,modes,data):
+    with open('/home/minoorr/alisa2/points.json') as f:
+        points = json.load(f)
+    data[user_id]['points'] += points['points'][f"{modes[user_id]['hint']} hint"]
+    return data
+
+def save_the_progress(data,file_name):
+    with open(file_name, 'w') as f:
+        json.dump(data, f)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8030))
