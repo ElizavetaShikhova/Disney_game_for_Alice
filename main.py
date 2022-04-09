@@ -1,9 +1,9 @@
 from flask import Flask, request
-import sys
 import json
 import os
-# sys.path.insert(1,'/home/minoorr/alisa2/working_with_api')
+
 from working_with_api import choose_level
+from leader_board import create_leader_board
 
 app = Flask(__name__)
 file_name = '/home/minoorr/alisa2/users.json'
@@ -30,27 +30,34 @@ def handle_dialog(res, req):
     user_id = req['session']['user_id']
     with open(file_name) as f:
         data = json.load(f)
+
+
     if req['session']['new']:
         if user_id in modes:
             del modes[user_id]
         if user_id not in data.keys():
             res['response']['text'] = \
                 'Привет! Как хорошо ты знаешь фильмы disney? Давай проверим! Но для начала нужно познакомиться. Как тебя зовут?'
-            data[user_id] = {'name': None, 'played': [], 'guessed': []}
-            with open(file_name, 'w') as f:
-                json.dump(data, f)
+            data[user_id] = {'name': None, 'played': [], 'guessed': [], 'points':0}
+            save_the_progress(data, file_name)
             return
         else:
             res['response'][
                 'text'] = f"Я рада, что ты здесь, {data[user_id]['name'].title()}. Выбирай режим игры. Ты можешь угадывать: " \
                           f"1)название фильма/мультфильма/тв сериала по фотаграфии героя и его имени" \
                           f" или 2)угадывать имя героя по фотографии героя и названию фильма"
-            res['response']['buttons'] = [{
-                'title': '1',
+            res['response']['buttons']=[{
+                'title':'Посмотреть лидерборд',
+                'hide':True},
+                {'title': '1',
                 'hide': True},
                 {'title': '2',
                  'hide': True}]
             return
+    else:
+        res['response']['buttons'] = [{
+            'title': 'Посмотреть лидерборд',
+            'hide': True}]
 
     if data[user_id]['name'] is None:
         first_name = get_name(req)
@@ -58,16 +65,21 @@ def handle_dialog(res, req):
             res['response']['text'] = 'Не расслышала имя. Повтори, пожалуйста!'
         else:
             data[user_id]['name'] = first_name
-            with open(file_name, 'w') as f:
-                json.dump(data, f)
+
+            save_the_progress(data,file_name)
+
             res['response'][
                 'text'] = f'Приятно познакомиться, {first_name.title()}. Выбирай режим игры. Ты можешь угадывать: 1)название фильма/мультфильма/тв сериала по фотаграфии героя и его имени или 2)угадывать имя героя по фотографии героя и названию фильма'
-            res['response']['buttons'] = [{
+            res['response']['buttons'] += [{
                 'title': '1',
                 'hide': True},
                 {'title': '2',
                  'hide': True}]
-            return
+        return
+
+    if req['request']['command'] == 'посмотреть лидерборд':
+        res['response']['text'] = create_leader_board(data,user_id)
+        return
 
     if user_id not in modes:  # Если игрок еще не выбрал режим игры
         if req['request']['command'] == '2':
@@ -76,7 +88,7 @@ def handle_dialog(res, req):
             modes[user_id] = {'mode': 1, 'categories': None, 'attempt': 0,'hint':0}
         else:
             res['response']['text'] = 'Прости, я тебя не поняла. Так что ты выбераешь?'
-            res['response']['buttons'] = [{
+            res['response']['buttons'] += [{
                 'title': '1',
                 'hide': True},
                 {'title': '2',
@@ -119,16 +131,25 @@ def handle_dialog(res, req):
     if user_id in modes and modes[user_id]['attempt']:
         guessed = False
         if req['request']['command'] == 'сдаюсь':
-            res['response']['text'] = f'Очень жаль, это был фильм "{modes[user_id]["ans"]}". '
+            res['response']['text'] = f'Очень жаль, это был фильм "{modes[user_id]["ans"].split("/")[0]}". '
             modes[user_id]['attempt'] = 0 #сброс  в  отдльной  функции?
             modes[user_id]['hint'] = 0
             guessed=True
         elif req['request']['command'] == 'подсказка':
-            modes[user_id]['hint']+=1
-            hint = get_hint(modes[user_id]['ans'],modes[user_id]['hint'])
+
+            hint=get_hint(user_id)
+
+            if not hint:
+                res['response']['text'] = 'У тебя больше не осталось подсказок!'
+                res['response']['buttons'] += [{
+                    'title': 'Сдаюсь',
+                    'hide': True},
+                    {'title': 'Подсказка',
+                     'hide': True}]
+                return
             res['response']['text'] = f'Вот несколько букв из названия фильма: "{hint}...". Но помни, чем больше подсказок, тем меньше баллов!'
             #modes[user_id]['attempt'] += 1
-            res['response']['buttons'] = [{
+            res['response']['buttons'] += [{
                 'title': 'Сдаюсь',
                 'hide': True},
                 {'title': 'Подсказка',
@@ -136,18 +157,21 @@ def handle_dialog(res, req):
             return
         for word in preparing_the_answer(modes[user_id]['ans']):
             if req['request']['command'] == word:
+                data, points = count_the_points(user_id, data)
                 res['response'][
-                    'text'] = f"Верно! Ты угадал с {modes[user_id]['attempt']} попытки. Поехали дальше. "  # посчитать баллы и сохранить
+                    'text'] = f"Верно! Ты угадал с {modes[user_id]['attempt']} попытки и заработал {points} баллов. Поехали дальше. "  # посчитать баллы и сохранить
                 modes[user_id]['attempt'] = 0
                 modes[user_id]['hint'] = 0
+
                 data[user_id]['guessed'].append(data[user_id]['played'][-1])
-                with open(file_name, 'w') as f:
-                    json.dump(data, f)
+
+                save_the_progress(data,file_name)
+
                 guessed = True
         if not guessed:
             res['response']['text'] = 'Попробуй еще раз'
             modes[user_id]['attempt'] += 1
-            res['response']['buttons'] = [{
+            res['response']['buttons'] += [{
                 'title': 'Сдаюсь',
                 'hide': True},
                 {'title': 'Подсказка',
@@ -171,10 +195,10 @@ def handle_dialog(res, req):
 
         modes[user_id]['attempt'] += 1
         data[user_id]['played'].append(res_dict['id'])
-        with open(file_name, 'w') as f:  # Может, стоит записать после угадывания?
+        with open(file_name, 'w') as f:  # Может, стоит записать после угадывания? Завести функцию с сохранением
             json.dump(data, f)
         res['response'][
-            'text'] += f"Угадай фильм по герою! Герой - {res_dict['name'].split('/')[0]}. В названии фильма {len(preparing_the_answer(res_dict['film'])[0].split())} слов(а)"
+            'text'] += f"Герой - {res_dict['name'].split('/')[0]}. В названии фильма {len(preparing_the_answer(res_dict['film'])[0].split())} слов(а)"
         res['response']['card'] = {}
         res['response']['card']['image_id'] = res_dict['image']
         res['response']['card']['type'] = 'BigImage'
@@ -183,8 +207,11 @@ def handle_dialog(res, req):
         modes[user_id]['ans'] = res_dict['film']
         return
 
-def get_hint(name_of_the_film,hint):
-    return name_of_the_film[:hint]
+def get_hint (user_id):
+    if modes[user_id]['hint'] <3:
+        modes[user_id]['hint']+=1
+        return modes[user_id]['ans'][:modes[user_id]['hint']]
+    return 0
 
 def get_name(req):
     for entity in req['request']['nlu']['entities']:
@@ -208,6 +235,20 @@ def preparing_the_answer(name_of_the_film):
         return a + ans
     else:
         return ans
+
+def count_the_points(user_id,data):
+    with open('/home/minoorr/alisa2/points.json') as f:
+        points = json.load(f)
+    if points['points'][f"{modes[user_id]['hint']} hint"]-modes[user_id]['attempt']+1<=0:
+        p = 1
+    else:
+        p = points['points'][f"{modes[user_id]['hint']} hint"]-modes[user_id]['attempt']+1
+    data[user_id]['points'] += p
+    return data,p
+
+def save_the_progress(data,file_name):
+    with open(file_name, 'w') as f:
+        json.dump(data, f)
 
 
 if __name__ == '__main__':

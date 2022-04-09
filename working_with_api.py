@@ -55,4 +55,3 @@ def get_film(n):
     if not response:
         pass
     return response.json()
-
