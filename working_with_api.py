@@ -5,26 +5,28 @@ import sqlite3
 
 
 def choose_level(modes,user):
-    n = choose_film(modes,user)
-    if isinstance(n, str):
-        return n
-    film = get_film(n)
-    mode = modes[user]['mode']
-    con = sqlite3.connect('/home/minoorr/alisa2/translation.db')                                            #работу с бд перенеси в др функцию
-    cur = con.cursor()
-    if film['films']:
-        genre = 'films'
-    elif film['tvShows']:
-        genre = 'tvShows'
-    else:
-        genre = 'shortFilms'
-    name_of_character = cur.execute("""SELECT translated_name FROM names where eng_name==?""",(film['name'],)).fetchall()
-    name_of_film = cur.execute("""SELECT translated_films FROM films where eng_films==?""",(film[genre][0],)).fetchall()
-    image = cur.execute("""SELECT image FROM names where eng_name==?""",(film['name'],)).fetchall()
-    if mode == 1:
-        return {'film':name_of_film[0][0],'id':int(film['_id']),'name':name_of_character[0][0],'image':image[0][0]}
-    if mode==2:                 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        pass
+    for _ in range(10):
+        n = choose_film(modes,user)
+        if isinstance(n, str):
+            return n
+        film = get_film(n)
+        con = sqlite3.connect('/home/minoorr/alisa2/translation.db')
+        cur = con.cursor()
+        if film['films']:
+            genre = 'films'
+        elif film['tvShows']:
+            genre = 'tvShows'
+        else:
+            genre = 'shortFilms'
+        name_of_character = cur.execute("""SELECT translated_name FROM names where eng_name==?""",(film['name'],)).fetchall()
+        name_of_film = cur.execute("""SELECT translated_films FROM films where eng_films==?""",(film[genre][0],)).fetchall()
+        image = cur.execute("""SELECT image FROM names where eng_name==?""",(film['name'],)).fetchall()
+        try:
+            return {'film':name_of_film[0][0],'id':int(film['_id']),'name':name_of_character[0][0],'image':image[0][0]}
+        except Exception:
+            pass
+    return
+
 
 
 def choose_film(modes, user):
