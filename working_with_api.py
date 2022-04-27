@@ -2,14 +2,18 @@ import json
 from random import choice
 import requests
 import sqlite3
+from make_logs import log_to_file
 
 
 def choose_level(modes,user):
-    for _ in range(10):
+    for _ in range(7):
         n = choose_film(modes,user)
         if isinstance(n, str):
             return n
         film = get_film(n)
+        if not film:
+            return
+
         con = sqlite3.connect('/home/minoorr/alisa2/translation.db')
         cur = con.cursor()
         if film['films']:
@@ -23,8 +27,10 @@ def choose_level(modes,user):
         image = cur.execute("""SELECT image FROM names where eng_name==?""",(film['name'],)).fetchall()
         try:
             return {'film':name_of_film[0][0],'id':int(film['_id']),'name':name_of_character[0][0],'image':image[0][0]}
-        except Exception:
+        except Exception as e:
+            error = f'name of error: {e}, name of film: "{name_of_film}", id:{film["_id"]}, name of character: "{name_of_character}", image: {image}'
             pass
+    log_to_file(error)
     return
 
 
@@ -55,5 +61,6 @@ def get_film(n):
     search_api_server = f"https://api.disneyapi.dev/characters/{n}"
     response = requests.get(search_api_server)
     if not response:
+        log_to_file(f'{search_api_server} did not respond')
         pass
     return response.json()
