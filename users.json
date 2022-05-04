@@ -1,38 +1,43 @@
 {
-  "4A8E464E9CBE561A203255F257EC17829495B1A569C4E96045A2B02E47880C4A": {
-    "name": "\u043b\u0438\u0437\u0430",
-    "played": [
-      138,
-      119,
-      14,
-      173,
-      165,
-      131
-    ],
-    "guessed": [
-      119,
-      173,
-      165
-    ],
-    "points": 30
-  },
   "4A8E464E9CBE561A203255F257EC17829495B1A569C4E96045A2B02E47880C4B": {
-    "name": "Человек2",
-    "played": [
-
-    ],
-    "guessed": [
-
-    ],
+    "name": "\u0427\u0435\u043b\u043e\u0432\u0435\u043a2",
+    "played": [],
+    "guessed": [],
     "points": 45
-  },"4A8E464E9CBE561A203255F257EC17829495B1A569C4E96045A2B02E47880C4C": {
-    "name": "Человек3",
-    "played": [
-
-    ],
-    "guessed": [
-
-    ],
+  },
+  "4A8E464E9CBE561A203255F257EC17829495B1A569C4E96045A2B02E47880C4C": {
+    "name": "\u0427\u0435\u043b\u043e\u0432\u0435\u043a3",
+    "played": [],
+    "guessed": [],
+    "points": 120
+  },
+   "4A8E464E9CBE561A203255F257EC17829495B1A569C4E96045A2B02E47880C4R": {
+    "name": "\u0427\u0435\u043b\u043e\u0432\u0435\u043a4",
+    "played": [],
+    "guessed": [],
     "points": 5
+  }, "4A8E464E9CBE561A203255F257EC17829495B1A569C4E96045A2B02E47880C4T": {
+    "name": "\u0427\u0435\u043b\u043e\u0432\u0435\u043a5",
+    "played": [],
+    "guessed": [],
+    "points": 560
+  },
+   "4A8E464E9CBE561A203255F257EC17829495B1A569C4E96045A2B02E47880C4P": {
+    "name": "\u0427\u0435\u043b\u043e\u0432\u0435\u043a6",
+    "played": [],
+    "guessed": [],
+    "points": 89
+  },
+   "4A8E464E9CBE561A203255F257EC17829495B1A569C4E96045A2B02E47880C4E": {
+    "name": "\u0427\u0435\u043b\u043e\u0432\u0435\u043a7",
+    "played": [],
+    "guessed": [],
+    "points": 12
+  },
+   "4A8E464E9CBE561A203255F257EC17829495B1A569C4E96045A2B02E47880C4W": {
+    "name": "\u0427\u0435\u043b\u043e\u0432\u0435\u043a8",
+    "played": [],
+    "guessed": [],
+    "points": 14
   }
 }

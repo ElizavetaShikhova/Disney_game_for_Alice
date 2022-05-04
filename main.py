@@ -11,6 +11,11 @@ modes = {}
 with open('/home/minoorr/alisa2/numbers.json') as f:
     numbers = json.load(f)
 
+with open('/home/minoorr/alisa2/phrases.json') as f:
+    phrases = json.load(f)
+
+LANG = 'Russian'
+
 
 @app.route('/post', methods=['POST'])
 def main():
@@ -19,7 +24,8 @@ def main():
         'version': request.json['version'],
         'response': {
             'end_session': False,
-            'text': ''
+            'text': '',
+            'buttons': []
         }
     }
 
@@ -30,18 +36,14 @@ def main():
 
 def start(user_id, data, res):
     if not data or user_id not in data.keys():
-        res['response']['text'] = \
-            'Привет! Как хорошо ты знаешь фильмы disney? Давай проверим! Но для начала нужно познакомиться. Как тебя зовут?'
+        res['response']['text'] = phrases['phrases'][LANG]['welcome and ask name']
         data[user_id] = {'name': None, 'played': [], 'guessed': [], 'points': 0}
         save_the_progress(data, file_name)
         return res, data
     else:
-        res['response'][
-            'text'] = f"Я рада, что ты здесь, {data[user_id]['name'].title()}. Выбирай режим игры. Ты можешь угадывать: " \
-                      f"1)название фильма/мультфильма/тв сериала по фотаграфии героя и его имени" \
-                      f" или 2)угадывать имя героя по фотографии героя и названию фильма"
+        res['response']['text'] = eval(f'f"{phrases["phrases"][LANG]["welcome and choose mode"]}"')
         res['response']['buttons'] = [{
-            'title': 'Посмотреть лидерборд',
+            'title': phrases["buttons"][LANG]["leaderboard"],
             'hide': True},
             {'title': '1',
              'hide': True},
@@ -53,14 +55,13 @@ def start(user_id, data, res):
 def ask_name(user_id, res, data, req):
     first_name = get_name(req)
     if first_name is None:
-        res['response']['text'] = 'Не расслышала имя. Повтори, пожалуйста!'
+        res['response']['text'] = phrases['phrases'][LANG]["didn't hear name"]
     else:
         data[user_id]['name'] = first_name
 
         save_the_progress(data, file_name)
 
-        res['response'][
-            'text'] = f'Приятно познакомиться, {first_name.title()}. Выбирай режим игры. Ты можешь угадывать: 1)название фильма/мультфильма/тв сериала по фотаграфии героя и его имени или 2)угадывать имя героя по фотографии героя и названию фильма'
+        res['response']['text'] = eval(f'f"{phrases["phrases"][LANG]["glad to meet you"]}"')
         res['response']['buttons'] += [{
             'title': '1',
             'hide': True},
@@ -76,53 +77,54 @@ def choose_mode(user_id, res, req):
         elif req['request']['command'] == '1':
             modes[user_id] = {'mode': 1, 'categories': None, 'attempt': 0, 'hint': 0}
         else:
-            res['response']['text'] = 'Прости, я тебя не поняла. Так что ты выбераешь?'
+            res['response']['text'] = phrases["phrases"][LANG]["did not get"]
             res['response']['buttons'] += [{
                 'title': '1',
                 'hide': True},
                 {'title': '2',
                  'hide': True}]
             return res
-        res['response']['text'] = 'Теперь выбери категорию. Фильмы, короткие фильмы или тв сериалы?'
+        res['response']['text'] = phrases["phrases"][LANG]["choose categories"]
         res['response']['buttons'] = [{
-            'title': 'Фильмы',
+            'title': phrases["buttons"][LANG]["films"],
             'hide': True},
-            {'title': 'Короткие фильмы',
+            {'title': phrases["buttons"][LANG]["short films"],
              'hide': True},
-            {'title': 'Тв сериалы',
+            {'title': phrases["buttons"][LANG]["TV series"],
              'hide': True},
-            {'title': 'Все вместе',
+            {'title': phrases["buttons"][LANG]["all"],
              'hide': True}]
         return res
 
 
 def choose_categories(user_id, res, req):
-    if 'коротк' in req['request']['command']:
+    if (phrases["buttons"][LANG]["short films"]).lower() in req['request']['command']:
         modes[user_id]['categories'] = 'shortFilms'
-    elif 'сериал' in req['request']['command']:
+    elif (phrases["buttons"][LANG]["TV series"]).lower() in req['request']['command']:
         modes[user_id]['categories'] = 'tvShows'
-    elif 'фильм' in req['request']['command']:
+    elif (phrases["buttons"][LANG]["films"]).lower() in req['request']['command']:
         modes[user_id]['categories'] = 'films'
     elif 'все' in req['request']['command'] or 'всё' in req['request']['command']:
         modes[user_id]['categories'] = 'all'
     else:
-        res['response']['text'] = 'Извини, я тебя не поняла. Какую категорию выберем?'
+        res['response']['text'] = phrases["phrases"][LANG]["did not get"]
         res['response']['buttons'] = [{
-            'title': 'Фильмы',
+            'title': phrases["buttons"][LANG]["films"],
             'hide': True},
-            {'title': 'Короткие фильмы',
+            {'title': phrases["buttons"][LANG]["short films"],
              'hide': True},
-            {'title': 'Тв сериалы',
+            {'title': phrases["buttons"][LANG]["TV series"],
              'hide': True},
-            {'title': 'Все вместе',
+            {'title': phrases["buttons"][LANG]["all"],
              'hide': True}]
         return res
 
 
 def game(user_id, res, req, data, mode):
-    res['response']['buttons'] += [{'title': 'Сменить категорию', 'hide': True},{'title':'Сменить режим','hide':True}]
-    if req['request']['command'] == 'сменить режим':
-        res['response']['text'] = 'Хорошо, поменяй режим'
+    res['response']['buttons'] += [{'title': phrases["buttons"][LANG]["change category"], 'hide': True},
+                                   {'title': phrases["buttons"][LANG]["change mode"], 'hide': True}]
+    if req['request']['command'] == (phrases["buttons"][LANG]["change mode"]).lower():
+        res['response']['text'] = phrases["phrases"][LANG]["change the mode"]
         res['response']['buttons'] = [{
             'title': '1',
             'hide': True},
@@ -133,16 +135,16 @@ def game(user_id, res, req, data, mode):
         modes[user_id]['attempt'] = 0
         modes[user_id]['hint'] = 0
         return res, data
-    if req['request']['command'] == 'сменить категорию':
-        res['response']['text'] = 'Хорошо, поменяй категорию'
+    if req['request']['command'] == (phrases["buttons"][LANG]["change category"]).lower():
+        res['response']['text'] = phrases["phrases"][LANG]["change the category"]
         res['response']['buttons'] = [{
-            'title': 'Фильмы',
+            'title': phrases["buttons"][LANG]["films"],
             'hide': True},
-            {'title': 'Короткие фильмы',
+            {'title': phrases["buttons"][LANG]["short films"],
              'hide': True},
-            {'title': 'Тв сериалы',
+            {'title': phrases["buttons"][LANG]["TV series"],
              'hide': True},
-            {'title': 'Все вместе',
+            {'title': phrases["buttons"][LANG]["all"],
              'hide': True}]
         modes[user_id]['categories'] = None
         modes[user_id]['attempt'] = 0
@@ -151,41 +153,39 @@ def game(user_id, res, req, data, mode):
 
     if user_id in modes and modes[user_id]['attempt']:
         guessed = False
-        if req['request']['command'] == 'сдаюсь':
-            res['response']['text'] = f'Очень жаль, это был фильм "{modes[user_id]["ans"].split("/")[0]}". '
+        if req['request']['command'] == (phrases["buttons"][LANG]["give up"]).lower():
+            res['response']['text'] = eval(f"f'{phrases['phrases'][LANG]['the player did not guessed']}'")
             modes[user_id]['attempt'] = 0
             modes[user_id]['hint'] = 0
             guessed = True
-        elif req['request']['command'] == 'подсказка':
+        elif req['request']['command'] == (phrases["buttons"][LANG]["hint"]).lower():
 
             hint = get_hint(user_id)
 
             if not hint:
-                res['response']['text'] = 'У тебя больше не осталось подсказок!'
+                res['response']['text'] = phrases["phrases"][LANG]["no more hints"]
                 res['response']['buttons'] += [{
-                    'title': 'Сдаюсь',
+                    'title': phrases["buttons"][LANG]["give up"],
                     'hide': True},
-                    {'title': 'Подсказка',
+                    {'title': phrases["buttons"][LANG]["hint"],
                      'hide': True}]
                 return res, data
             if mode == 1:
-                res['response'][
-                    'text'] = f'Вот несколько букв из названия фильма: "{hint}...". Но помни, чем больше подсказок, тем меньше баллов!'
+                res['response']['text'] = eval(f"f'{phrases['phrases'][LANG]['hint for mode 1']}'")
             else:
                 res['response'][
-                    'text'] = f'Вот несколько букв из имени: "{hint}...". Но помни, чем больше подсказок, тем меньше баллов!'
+                    'text'] = eval(f"f'{phrases['phrases'][LANG]['hint for mode 2']}'")
             # modes[user_id]['attempt'] += 1
             res['response']['buttons'] += [{
-                'title': 'Сдаюсь',
+                'title': phrases["buttons"][LANG]["give up"],
                 'hide': True},
-                {'title': 'Подсказка',
+                {'title': phrases["buttons"][LANG]["hint"],
                  'hide': True}]
             return res, data
         for word in preparing_the_answer(modes[user_id]['ans']):
             if preparing_the_answer(req['request']['command'])[0] == word:
                 data, points = count_the_points(user_id, data)
-                res['response'][
-                    'text'] = f"Верно! Ты угадал с {modes[user_id]['attempt']} попытки и заработал {points} баллов. Поехали дальше. "
+                res['response']['text'] = eval(f'f"{phrases["phrases"][LANG]["guessed right"]}"')
                 modes[user_id]['attempt'] = 0
                 modes[user_id]['hint'] = 0
 
@@ -195,30 +195,30 @@ def game(user_id, res, req, data, mode):
 
                 guessed = True
         if not guessed:
-            res['response']['text'] = 'Попробуй еще раз'
+            res['response']['text'] = eval(f'f"{phrases["phrases"][LANG]["try again"]}"')
             modes[user_id]['attempt'] += 1
             res['response']['buttons'] = [{
-                'title': 'Сдаюсь',
+                'title': phrases["buttons"][LANG]["give up"],
                 'hide': True},
-                {'title': 'Подсказка',
-                 'hide': True}]+res['response']['buttons']
+                                             {'title': phrases["buttons"][LANG]["hint"],
+                                              'hide': True}] + res['response']['buttons']
             return res, data
     if user_id in modes and modes[user_id]['categories'] and not modes[user_id]['attempt']:
-        res_dict = choose_level(modes, user_id,data[user_id]['played'],numbers)
+        res_dict = choose_level(modes, user_id, data[user_id]['played'], numbers, phrases, LANG)
         if not res_dict:
-            res['response']['text'] = 'Произошла какая-то ошибка, разработчики уже работают над этим'
+            res['response']['text'] = phrases["phrases"][LANG]["oops"]
             return res, data
         if isinstance(res_dict, str):
             res['response']['text'] += res_dict
             modes[user_id]['categories'] = None
             res['response']['buttons'] = [{
-                'title': 'Фильмы',
+                'title': phrases["buttons"][LANG]["films"],
                 'hide': True},
-                {'title': 'Короткие фильмы',
+                {'title': phrases["buttons"][LANG]["short films"],
                  'hide': True},
-                {'title': 'Тв сериалы',
+                {'title': phrases["buttons"][LANG]["TV series"],
                  'hide': True},
-                {'title': 'Все вместе',
+                {'title': phrases["buttons"][LANG]["all"],
                  'hide': True}]
             return res, data
 
@@ -227,10 +227,10 @@ def game(user_id, res, req, data, mode):
         save_the_progress(data, file_name)
         if mode == 1:
             res['response'][
-                'text'] += f"Герой - {res_dict['name'].split('/')[0]}. В названии фильма {len(preparing_the_answer(res_dict['film'])[0].split())} слов(а)"
+                'text'] += eval(f'f"{phrases["phrases"][LANG]["the hero is"]}"')
         else:
             res['response'][
-                'text'] += f"Фильм - {res_dict['film'].split('/')[0]}. В имени {len(preparing_the_answer(res_dict['name'])[0].split())} слов(а)"
+                'text'] += eval(f'f"{phrases["phrases"][LANG]["the film is"]}"')
         res['response']['card'] = {}
         res['response']['card']['image_id'] = res_dict['image']
         res['response']['card']['type'] = 'BigImage'
@@ -253,16 +253,16 @@ def handle_dialog(res, req):
             del modes[user_id]
         res, data = start(user_id, data, res)
         return
-    else:
+    elif data[user_id]['name']:
         res['response']['buttons'] = [{
-            'title': 'Посмотреть лидерборд',
+            'title': phrases["buttons"][LANG]["leaderboard"],
             'hide': True}]
 
     if data[user_id]['name'] is None:
         res, data = ask_name(user_id, res, data, req)
         return
 
-    if req['request']['command'] == 'посмотреть лидерборд':
+    if req['request']['command'] == (phrases["buttons"][LANG]["leaderboard"]).lower():
         res['response']['text'] = create_leader_board(data, user_id)
         return
 
@@ -294,18 +294,21 @@ def get_name(req):
 def preparing_the_answer(name_of_the_film):
     ans = name_of_the_film.lower().split('/')
     a = []
-    for i in ans:
-        res = ''
-        for j in i:
-            if j not in {'-', '!', '?', ',', ':'}:
-                if not res or res[-1] != j:
-                    if j == 'ё':
-                        res += 'е'
-                    else:
-                        res += j
-            elif res[-1] != ' ':
-                res += ' '
-        a.append(res)
+    if LANG == 'Russian':
+        for i in ans:
+            res = ''
+            for j in i:
+                if j not in {'-', '!', '?', ',', ':'}:
+                    if not res or res[-1] != j:
+                        if j == 'ё':
+                            res += 'е'
+                        else:
+                            res += j
+                elif res[-1] != ' ':
+                    res += ' '
+            a.append(res)
+    else:
+        pass
     return a
 
 
