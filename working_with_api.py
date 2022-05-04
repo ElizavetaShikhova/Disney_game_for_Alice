@@ -1,13 +1,11 @@
-import json
-from random import choice
 import requests
 import sqlite3
 from make_logs import log_to_file
 
 
-def choose_level(modes,user):
+def choose_level(modes,user, played,numbers):
     for _ in range(7):
-        n = choose_film(modes,user)
+        n = choose_film(modes,user,played,numbers)
         if isinstance(n, str):
             return n
         film = get_film(n)
@@ -35,27 +33,18 @@ def choose_level(modes,user):
 
 
 
-def choose_film(modes, user):
+def choose_film(modes, user,played,f):
     categories = modes[user]['categories']
-    with open('/home/minoorr/alisa2/users.json') as f:
-        played = json.load(f)[user]['played']
-    with open('/home/minoorr/alisa2/numbers.json') as f:
-        f = json.load(f)
-
     try:
         numbers = f["number_for_random_choosing"][categories]
     except Exception:
         numbers = f["number_for_random_choosing"]['tvShows'] + f["number_for_random_choosing"]['films'] + \
                   f["number_for_random_choosing"]['shortFilms']
 
-    if set(numbers) &set(played)==set(numbers):
+    try:
+        return (set(numbers)-set(played)).pop()
+    except Exception:
         return 'Ты уже угадывал все фильмы из этой категории'
-
-    while True:
-        num = choice(numbers)#set(numbers)-set(played) и без while True
-        if int(num) not in played:
-            break
-    return num
 
 def get_film(n):
     search_api_server = f"https://api.disneyapi.dev/characters/{n}"

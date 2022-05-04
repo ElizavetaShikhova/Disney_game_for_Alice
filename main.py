@@ -8,6 +8,8 @@ from leader_board import create_leader_board
 app = Flask(__name__)
 file_name = '/home/minoorr/alisa2/users.json'
 modes = {}
+with open('/home/minoorr/alisa2/numbers.json') as f:
+    numbers = json.load(f)
 
 
 @app.route('/post', methods=['POST'])
@@ -32,7 +34,7 @@ def start(user_id, data, res):
             'Привет! Как хорошо ты знаешь фильмы disney? Давай проверим! Но для начала нужно познакомиться. Как тебя зовут?'
         data[user_id] = {'name': None, 'played': [], 'guessed': [], 'points': 0}
         save_the_progress(data, file_name)
-        return
+        return res, data
     else:
         res['response'][
             'text'] = f"Я рада, что ты здесь, {data[user_id]['name'].title()}. Выбирай режим игры. Ты можешь угадывать: " \
@@ -68,7 +70,7 @@ def ask_name(user_id, res, data, req):
 
 
 def choose_mode(user_id, res, req):
-    if user_id not in modes:  # Если игрок еще не выбрал режим игры
+    if user_id not in modes or not modes[user_id]['mode']:  # Если игрок еще не выбрал режим игры
         if req['request']['command'] == '2':
             modes[user_id] = {'mode': 2, 'categories': None, 'attempt': 0, 'hint': 0}
         elif req['request']['command'] == '1':
@@ -118,7 +120,19 @@ def choose_categories(user_id, res, req):
 
 
 def game(user_id, res, req, data, mode):
-    res['response']['buttons'] += [{'title': 'Сменить категорию', 'hide': True}]
+    res['response']['buttons'] += [{'title': 'Сменить категорию', 'hide': True},{'title':'Сменить режим','hide':True}]
+    if req['request']['command'] == 'сменить режим':
+        res['response']['text'] = 'Хорошо, поменяй режим'
+        res['response']['buttons'] = [{
+            'title': '1',
+            'hide': True},
+            {'title': '2',
+             'hide': True}]
+        modes[user_id]['categories'] = None
+        modes[user_id]['mode'] = None
+        modes[user_id]['attempt'] = 0
+        modes[user_id]['hint'] = 0
+        return res, data
     if req['request']['command'] == 'сменить категорию':
         res['response']['text'] = 'Хорошо, поменяй категорию'
         res['response']['buttons'] = [{
@@ -168,10 +182,10 @@ def game(user_id, res, req, data, mode):
                  'hide': True}]
             return res, data
         for word in preparing_the_answer(modes[user_id]['ans']):
-            if req['request']['command'] == word:
+            if preparing_the_answer(req['request']['command'])[0] == word:
                 data, points = count_the_points(user_id, data)
                 res['response'][
-                    'text'] = f"Верно! Ты угадал с {modes[user_id]['attempt']} попытки и заработал {points} баллов. Поехали дальше. "  # посчитать баллы и сохранить
+                    'text'] = f"Верно! Ты угадал с {modes[user_id]['attempt']} попытки и заработал {points} баллов. Поехали дальше. "
                 modes[user_id]['attempt'] = 0
                 modes[user_id]['hint'] = 0
 
@@ -183,19 +197,20 @@ def game(user_id, res, req, data, mode):
         if not guessed:
             res['response']['text'] = 'Попробуй еще раз'
             modes[user_id]['attempt'] += 1
-            res['response']['buttons'] += [{
+            res['response']['buttons'] = [{
                 'title': 'Сдаюсь',
                 'hide': True},
                 {'title': 'Подсказка',
-                 'hide': True}]
+                 'hide': True}]+res['response']['buttons']
             return res, data
     if user_id in modes and modes[user_id]['categories'] and not modes[user_id]['attempt']:
-        res_dict = choose_level(modes, user_id)
+        res_dict = choose_level(modes, user_id,data[user_id]['played'],numbers)
         if not res_dict:
             res['response']['text'] = 'Произошла какая-то ошибка, разработчики уже работают над этим'
             return res, data
         if isinstance(res_dict, str):
-            res['response']['text'] = res_dict
+            res['response']['text'] += res_dict
+            modes[user_id]['categories'] = None
             res['response']['buttons'] = [{
                 'title': 'Фильмы',
                 'hide': True},
@@ -251,7 +266,7 @@ def handle_dialog(res, req):
         res['response']['text'] = create_leader_board(data, user_id)
         return
 
-    if user_id not in modes:  # Если игрок еще не выбрал режим игры
+    if user_id not in modes or not modes[user_id]['mode']:  # Если игрок еще не выбрал режим игры
         res = choose_mode(user_id, res, req)
         return
 
@@ -279,22 +294,19 @@ def get_name(req):
 def preparing_the_answer(name_of_the_film):
     ans = name_of_the_film.lower().split('/')
     a = []
-    letters = set()
     for i in ans:
         res = ''
-        if i not in letters:
-            letters.add(i)
-            if set(list(i)) & {'-', '!', '?', ','}:
-                for j in list(i):
-                    if j not in {'-', '!', '?', ','}:
-                        res += j
+        for j in i:
+            if j not in {'-', '!', '?', ',', ':'}:
+                if not res or res[-1] != j:
+                    if j == 'ё':
+                        res += 'е'
                     else:
-                        res += ' '
-            a.append(' '.join(res.split()))
-        if a[0]:
-            return a + ans
-        else:
-            return ans
+                        res += j
+            elif res[-1] != ' ':
+                res += ' '
+        a.append(res)
+    return a
 
 
 def count_the_points(user_id, data):
